@@ -47,6 +47,8 @@ async fn update_exchange_rates(cache: Arc<Mutex<Rates>>) {
 
 #[tokio::main]
 async fn main() {
+    // 提供静态文件服务，指向 "scr" 目录
+    let static_files = warp::fs::dir("src");
     let rates_cache = Arc::new(Mutex::new(fetch_exchange_rates().await));
 
     // 启动后台任务定期更新汇率
@@ -65,8 +67,8 @@ async fn main() {
 
     // 创建主页路由
     let hello = warp::path::end().map(|| {
-        warp::reply::html(include_str!("index.html"))
-    });
+        warp::reply::html(include_str!("src/index.html"))
+    }).or(static_files);
 
     // 静态文件服务
     let static_files = warp::fs::dir("public");
