@@ -3,51 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>汇率转换器</title>
+    <title>汇率查询</title>
 </head>
 <body>
-<h1>汇率转换器</h1>
+<h1>汇率转换</h1>
+<label for="amount">输入人民币金额：</label>
+<input type="text" id="amount" value="1" pattern="\d*">
 
-<label for="amount">人民币金额：</label>
-<input type="number" id="amount" value="1" min="0" step="0.01">
-<br><br>
+<label for="currency">选择货币：</label>
+<select id="currency">
+    <!-- 汇率选项会在页面加载后通过 JavaScript 动态生成 -->
+</select>
 
-<label for="currency">目标货币：</label>
-<select id="currency"></select>
-<br><br>
-
-<p>转换结果：<span id="result">0</span></p>
+<h2>转换结果</h2>
+<p id="result">结果将显示在这里</p>
 
 <script>
-    // 获取汇率数据
-    let rates = {};
+    // 获取汇率并生成选项
     fetch('/api/rates')
         .then(response => response.json())
         .then(data => {
-            rates = data;
             const select = document.getElementById('currency');
-            for (const currency in rates) {
-                let option = document.createElement('option');
-                option.value = currency;
-                option.text = currency;
+            const rates = data.rates;
+            const currencyInfo = {
+                "USD": "美元",
+                "EUR": "欧元",
+                "GBP": "英镑",
+                "JPY": "日元",
+                "AUD": "澳大利亚元",
+                "CAD": "加拿大元",
+                "CNY": "人民币",
+                // 添加更多汇率和中文名
+            };
+
+            // 生成下拉菜单选项
+            for (const [code, rate] of Object.entries(rates)) {
+                const option = document.createElement('option');
+                option.value = code;
+                option.text = `${code} - ${currencyInfo[code] || '未知'} (${rate})`;
                 select.appendChild(option);
             }
-            calculate();
+
+            // 默认选中美元
+            select.value = 'USD';
         });
 
-    // 监听输入框和下拉框的变化
-    document.getElementById('amount').addEventListener('input', calculate);
-    document.getElementById('currency').addEventListener('change', calculate);
+    // 监听用户输入和选择
+    document.getElementById('amount').addEventListener('input', calculateExchange);
+    document.getElementById('currency').addEventListener('change', calculateExchange);
 
-    // 计算并显示结果
-    function calculate() {
-        const amount = parseFloat(document.getElementById('amount').value);
-        const selectedCurrency = document.getElementById('currency').value;
-        const exchangeRate = rates[selectedCurrency] || 0;
-        const result = (amount * exchangeRate).toFixed(2);
-        document.getElementById('result').textContent = result + ' ' + selectedCurrency;
+    function calculateExchange() {
+        const amount = parseFloat(document.getElementById('amount').value) || 0;
+        const currency = document.getElementById('currency').value;
+
+        fetch('/api/rates')
+            .then(response => response.json())
+            .then(data => {
+                const rate = data.rates[currency];
+                const result = amount * rate;
+                document.getElementById('result').textContent = `转换后的金额：${result.toFixed(2)} ${currency}`;
+            });
     }
 </script>
-
 </body>
 </html>
