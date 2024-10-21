@@ -67,7 +67,7 @@ async fn main() {
 
     // 创建主页路由
     let hello = warp::path::end().map(|| {
-        warp::reply::html(include_str!("src/index.html"))
+        warp::reply::html(include_str!("index.html"))
     }).or(static_files);
 
     // 静态文件服务
