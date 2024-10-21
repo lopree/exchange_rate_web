@@ -15,7 +15,7 @@ struct Rates {
 async fn fetch_exchange_rates() -> Rates {
     // 模拟的汇率数据
     let mut rates = HashMap::new();
-    rates.insert("USD".to_string(), 0.141);
+    rates.insert("USD".to_string(), 1.0);
     rates.insert("GBP".to_string(), 0.108);
     rates.insert("JPY".to_string(), 21.03);
     rates.insert("ARS".to_string(), 138.27);
@@ -28,7 +28,7 @@ async fn fetch_exchange_rates() -> Rates {
     Rates { rates }
 }
 
-// 后台任务，每隔一段时间（如1小时）更新汇率
+// 后台任务，每隔一段时间更新汇率
 async fn update_exchange_rates(cache: Arc<Mutex<Rates>>) {
     loop {
         // 获取新的汇率
@@ -40,8 +40,8 @@ async fn update_exchange_rates(cache: Arc<Mutex<Rates>>) {
             *cache_lock = rates;
         } // 在这里释放锁
 
-        // 休眠1小时后再更新
-        sleep(Duration::from_secs(3600)).await;
+        // 休眠60s后再更新
+        sleep(Duration::from_secs(10)).await;
     }
 }
 
