@@ -31,10 +31,15 @@ async fn fetch_exchange_rates() -> Rates {
 // 后台任务，每隔一段时间（如1小时）更新汇率
 async fn update_exchange_rates(cache: Arc<Mutex<Rates>>) {
     loop {
+        // 获取新的汇率
         let rates = fetch_exchange_rates().await;
-        let mut cache_lock = cache.lock().unwrap();
-        *cache_lock = rates;
-        drop(cache_lock);
+
+        // 更新缓存
+        {
+            let mut cache_lock = cache.lock().unwrap();
+            *cache_lock = rates;
+        } // 在这里释放锁
+
         // 休眠1小时后再更新
         sleep(Duration::from_secs(3600)).await;
     }
