@@ -43,7 +43,7 @@ async fn main() {
     // 启动服务器
     let routes = index.or(rates).recover(handle_rejection);
     warp::serve(routes)
-        .run(([127, 0, 0, 1], 3030)).await;
+        .run(([0, 0, 0, 0], 3030)).await;
 }
 
 // 错误处理
