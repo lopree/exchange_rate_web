@@ -15,37 +15,21 @@ struct ErrorResponse {
 
 #[tokio::main]
 async fn main() {
-    let client = Client::new();
-
-    // API 路由
     let rates = warp::path("api")
         .and(warp::path("rates"))
-        .and_then(move || {
-            let client = client.clone();
-            async move {
-                match fetch_rates(&client).await {
-                    Ok(rates) => Ok::<warp::reply::Json, warp::Rejection>(warp::reply::json(&rates)),
-                    Err(_) => {
-                        let error_response = ErrorResponse {
-                            error: "Error fetching rates".to_string(),
-                        };
-                        Ok::<warp::reply::Json, warp::Rejection>(warp::reply::json(&error_response))
-                    }
-                }
-            }
+        .map(|| {
+            let rates = serde_json::json!({
+                "CNY": 1.0, // 人民币的基准汇率
+                "USD": 0.15 // 假设美元的汇率（1 CNY = 0.15 USD）
+            });
+            warp::reply::json(&rates)
         });
 
+    let routes = rates;
 
-    // HTML 页面
-    let index = warp::path::end()
-        .map(|| warp::reply::html(include_str!("index.html")));
-
-    // 启动服务器
-    let routes = index.or(rates).recover(handle_rejection);
-    println!("Starting server on http://0.0.0.0:3030");
     warp::serve(routes)
-        .run(([0, 0, 0, 0], 3030)).await;
-
+        .run(([0, 0, 0, 0], 3030))
+        .await;
 }
 
 // 错误处理

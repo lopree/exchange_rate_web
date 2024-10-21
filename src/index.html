@@ -12,7 +12,10 @@
     fetch('/api/rates')
         .then(response => response.json())
         .then(data => {
-            document.getElementById('rates').textContent = JSON.stringify(data.rates, null, 2);
+            document.getElementById('rates').textContent = `人民币: ${data.CNY}, 美元: ${data.USD}`;
+        })
+        .catch(error => {
+            console.error('Error fetching rates:', error);
         });
 </script>
 </body>
