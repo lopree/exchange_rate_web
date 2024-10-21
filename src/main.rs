@@ -1,17 +1,17 @@
 use warp::Filter;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Deserialize,Serialize)]
 struct RateResponse {
-    rates: std::collections::HashMap<String, f64>,
+    rates: HashMap<String, f64>,
 }
 
 #[derive(Serialize)]
 struct ErrorResponse {
     error: String,
 }
-
 
 #[tokio::main]
 async fn main() {
@@ -24,25 +24,33 @@ async fn main() {
             let client = client.clone();
             async move {
                 match fetch_rates(&client).await {
-                    Ok(rates) => warp::reply::json(&rates),
+                    Ok(rates) => Ok::<warp::reply::Json, warp::Rejection>(warp::reply::json(&rates)),
                     Err(_) => {
                         let error_response = ErrorResponse {
                             error: "Error fetching rates".to_string(),
                         };
-                        warp::reply::json(&error_response)
+                        Ok::<warp::reply::Json, warp::Rejection>(warp::reply::json(&error_response))
                     }
                 }
             }
         });
+
 
     // HTML 页面
     let index = warp::path::end()
         .map(|| warp::reply::html(include_str!("index.html")));
 
     // 启动服务器
-    let routes = index.or(rates);
+    let routes = index.or(rates).recover(handle_rejection);
     warp::serve(routes)
         .run(([127, 0, 0, 1], 3030)).await;
+}
+
+// 错误处理
+async fn handle_rejection(err: warp::Rejection) -> Result<warp::reply::Response, warp::Rejection> {
+    // 这里可以添加更多错误处理逻辑
+    eprintln!("Unhandled rejection: {:?}", err);
+    Err(err)
 }
 
 async fn fetch_rates(client: &Client) -> Result<RateResponse, reqwest::Error> {

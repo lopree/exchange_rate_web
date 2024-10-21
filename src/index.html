@@ -1,0 +1,19 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>汇率查询</title>
+</head>
+<body>
+<h1>当前汇率</h1>
+<pre id="rates"></pre>
+<script>
+    fetch('/api/rates')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('rates').textContent = JSON.stringify(data.rates, null, 2);
+        });
+</script>
+</body>
+</html>
