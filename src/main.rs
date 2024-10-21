@@ -1,20 +1,26 @@
 use warp::Filter;
-use std::sync::{Arc, Mutex};
+use tokio::sync::Mutex;
+use tokio::task;
+use std::sync::Arc;
 use std::collections::HashMap;
-use tokio::{time::sleep,task};
-use std::time::Duration;
+use tokio::time::{sleep, Duration};
 
-use serde::{Deserialize, Serialize};
+type Rates = HashMap<String, f64>;
+type Cache = Arc<Mutex<Rates>>;
 
-#[derive(Serialize, Deserialize, Clone)]
-struct Rates {
-    rates: HashMap<String, f64>,
+async fn update_exchange_rates(cache: Cache) {
+    loop {
+        let new_rates = get_rates_from_api().await;
+
+        let mut cache_lock = cache.lock().await;
+        *cache_lock = new_rates;
+
+        sleep(Duration::from_secs(10)).await;
+    }
 }
 
-// 模拟从外部 API 获取汇率
-async fn fetch_exchange_rates() -> Rates {
-    // 模拟的汇率数据
-    let mut rates = HashMap::new();
+async fn get_rates_from_api() -> Rates {
+    let mut rates = Rates::new();
     rates.insert("USD".to_string(), 1.0);
     rates.insert("GBP".to_string(), 0.108);
     rates.insert("JPY".to_string(), 21.03);
@@ -24,58 +30,44 @@ async fn fetch_exchange_rates() -> Rates {
     rates.insert("HKD".to_string(), 1.09);
     rates.insert("TWD".to_string(), 4.5);
     rates.insert("SGD".to_string(), 0.184);
-
-    Rates { rates }
-}
-
-// 后台任务，每隔一段时间更新汇率
-async fn update_exchange_rates(cache: Arc<Mutex<Rates>>) {
-    loop {
-        // 获取新的汇率
-        let rates = fetch_exchange_rates().await;
-
-        // 更新缓存
-        {
-            let mut cache_lock = cache.lock().unwrap();
-            *cache_lock = rates;
-        } // 在这里释放锁
-
-        // 休眠60s后再更新
-        sleep(Duration::from_secs(10)).await;
-    }
+    rates.insert("CNY".to_string(), 1.0);
+    rates
 }
 
 #[tokio::main]
 async fn main() {
-    // 提供静态文件服务，指向 "scr" 目录
-    let static_files = warp::fs::dir("src");
-    let rates_cache = Arc::new(Mutex::new(fetch_exchange_rates().await));
+    let cache: Cache = Arc::new(Mutex::new(get_rates_from_api().await));
 
-    // 启动后台任务定期更新汇率
-    let cache_clone = rates_cache.clone();
+    let cache_clone = cache.clone();
     task::spawn(async move {
         update_exchange_rates(cache_clone).await;
     });
 
-    // 创建汇率API路由，直接返回缓存的汇率
+    // API 路由
     let rates_api = warp::path("api")
         .and(warp::path("rates"))
-        .map(move || {
-            let cache_lock = rates_cache.lock().unwrap();
-            warp::reply::json(&*cache_lock)
+        .and_then({
+            let cache = cache.clone();
+            move || {
+                let cache = cache.clone();
+                async move {
+                    let rates = cache.lock().await;
+                    Ok::<_, warp::Rejection>(warp::reply::json(&*rates))
+                }
+            }
         });
 
-    // 创建主页路由
-    let hello = warp::path::end().map(|| {
-        warp::reply::html(include_str!("index.html"))
-    }).or(static_files);
+    // 静态文件路由
+    let static_files = warp::fs::dir("src");
 
-    // 静态文件服务
-    let static_files = warp::fs::dir("public");
+    // 主页路由
+    let hello = warp::path::end()
+        .map(|| warp::reply::html(include_str!("index.html")));
 
-    // 合并路由
-    let routes = hello.or(rates_api).or(static_files);
+    // 使用 warp::any 来组合路由
+    let routes = warp::any()
+        .and(hello.or(rates_api).or(static_files));
 
-    // 启动服务器
+    // 运行服务
     warp::serve(routes).run(([0, 0, 0, 0], 3030)).await;
 }
