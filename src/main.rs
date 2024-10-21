@@ -42,8 +42,10 @@ async fn main() {
 
     // 启动服务器
     let routes = index.or(rates).recover(handle_rejection);
+    println!("Starting server on http://0.0.0.0:3030");
     warp::serve(routes)
         .run(([0, 0, 0, 0], 3030)).await;
+
 }
 
 // 错误处理
